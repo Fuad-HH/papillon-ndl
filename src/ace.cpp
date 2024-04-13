@@ -84,11 +84,9 @@ ACE::ACE(std::string fname, Type type)
     case Type::BINARY:
       read_binary(file);
       break;
-/*
-    case Type::HIGHFIVE:
-      read_hdf5(file);
+    case Type::HDF5:
+      read_hdf5(fname); // because the highfive needs the file name
       break;
-*/
   }
 
   file.close();
@@ -277,10 +275,54 @@ void ACE::read_binary(std::ifstream& file) {
   if (jxs_[1] > 0) fissile_ = true;
 }
 
-/*
-void ACE::read_hdf5(std::ifstream& file) {
+
+void ACE::read_hdf5(std::string& fname) {
+  HighFive::File hdf5_file(fname, HighFive::File::ReadOnly);
+  // Read all the datasets
+  HighFive::DataSet xss = hdf5_file.getDataSet("xss");
+  xss.read(xss_);
+
+  HighFive::DataSet nxs = hdf5_file.getDataSet("nxs");
+  nxs.read(nxs_);
+
+  HighFive::DataSet jxs = hdf5_file.getDataSet("jxs");
+  jxs.read(jxs_);
+
+  HighFive::DataSet izaw = hdf5_file.getDataSet("izaw");
+  std::vector<PairIntDouble> izaw_converted;
+  izaw.read(izaw_converted);
+  for (size_t i = 0; i < izaw_converted.size(); ++i) {
+    izaw_[i] = {izaw_converted[i].first, izaw_converted[i].second};
+  }
+
+  HighFive::DataSet zaid_ds = hdf5_file.getDataSet("zaid");
+  std::vector<uint32_t> zaid;
+  zaid_ds.read(zaid);
+  zaid_ = ZAID((uint8_t)zaid[0], (uint8_t)zaid[1]); // casting back to uint8_t
+
+  HighFive::DataSet awr = hdf5_file.getDataSet("awr");
+  awr.read(awr_);
+
+  HighFive::DataSet temperature = hdf5_file.getDataSet("temperature");
+  temperature.read(temperature_);
+
+  HighFive::DataSet fissile = hdf5_file.getDataSet("fissile");
+  fissile.read(fissile_);
+
+  HighFive::DataSet mat = hdf5_file.getDataSet("mat");
+  mat.read(mat_);
+
+  HighFive::DataSet date = hdf5_file.getDataSet("date");
+  date.read(date_);
+
+  HighFive::DataSet comment = hdf5_file.getDataSet("comment");
+  comment.read(comment_);
+
+  HighFive::DataSet flname = hdf5_file.getDataSet("fname");
+  flname.read(fname_);
 }
-*/
+
+
 void ACE::save_binary(std::string& fname) {
   std::ofstream file(fname, std::ios_base::binary);
 

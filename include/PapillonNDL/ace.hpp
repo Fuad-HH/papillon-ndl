@@ -49,7 +49,7 @@ class ACE {
   enum class Type {
     ASCII, /**< ACE stored as ASCII text. */
     BINARY, /**< ACE stored in NJOY binary format. */
-    HIGHFIVE /**< ACE stored in HDF5 format. */
+    HDF5 /**< ACE stored in HDF5 format. */
   };
 
   /**
@@ -335,7 +335,7 @@ class ACE {
   // Private Helper Methods
   void read_ascii(std::ifstream& file);
   void read_binary(std::ifstream& file);
-  //void read_hdf5(std::string& file);
+  void read_hdf5(std::string& fname);
 };  // ACE
 }  // namespace pndl
 
