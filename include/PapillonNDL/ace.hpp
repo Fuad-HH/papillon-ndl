@@ -33,6 +33,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <highfive/highfive.hpp>
 
 namespace pndl {
 
@@ -47,7 +48,8 @@ class ACE {
    */
   enum class Type {
     ASCII, /**< ACE stored as ASCII text. */
-    BINARY /**< ACE stored in NJOY binary format. */
+    BINARY, /**< ACE stored in NJOY binary format. */
+    HIGHFIVE /**< ACE stored in HDF5 format. */
   };
 
   /**
@@ -219,6 +221,12 @@ class ACE {
   void save_binary(std::string& fname);
 
   /**
+   * @brief Saves a copy of the ACE file in the HDF5 (using HighFive) format.
+   * @param fname Name of file where HDF5 data will be saved.
+   */
+  void save_hdf5(std::string& fname);
+
+  /**
    * @brief Returns a pointer to the beginning of the XSS array.
    */
   const double* xss_data() const;
@@ -327,6 +335,7 @@ class ACE {
   // Private Helper Methods
   void read_ascii(std::ifstream& file);
   void read_binary(std::ifstream& file);
+  //void read_hdf5(std::string& file);
 };  // ACE
 }  // namespace pndl
 

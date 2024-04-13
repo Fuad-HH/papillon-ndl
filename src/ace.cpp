@@ -27,7 +27,24 @@
 #include <ios>
 #include <string>
 
+#include <highfive/highfive.hpp>
+#include <highfive/H5File.hpp>
+#include <highfive/H5DataSet.hpp>
+#include <highfive/H5DataSpace.hpp>
+
 #include "constants.hpp"
+
+// Define the compound datatype for the izaw array
+typedef struct {
+    int32_t first;
+    double second;
+} PairIntDouble;
+
+HighFive::CompoundType create_compound_PairIntDouble() {
+    return {{"first", HighFive::create_datatype<int32_t>()},
+            {"second", HighFive::create_datatype<double>()}};
+}
+HIGHFIVE_REGISTER_TYPE(PairIntDouble, create_compound_PairIntDouble)
 
 namespace pndl {
 
@@ -67,6 +84,11 @@ ACE::ACE(std::string fname, Type type)
     case Type::BINARY:
       read_binary(file);
       break;
+/*
+    case Type::HIGHFIVE:
+      read_hdf5(file);
+      break;
+*/
   }
 
   file.close();
@@ -255,6 +277,10 @@ void ACE::read_binary(std::ifstream& file) {
   if (jxs_[1] > 0) fissile_ = true;
 }
 
+/*
+void ACE::read_hdf5(std::ifstream& file) {
+}
+*/
 void ACE::save_binary(std::string& fname) {
   std::ofstream file(fname, std::ios_base::binary);
 
@@ -322,6 +348,73 @@ void ACE::save_binary(std::string& fname) {
   }
 
   file.close();
+}
+
+void ACE::save_hdf5(std::string& fname) {
+  // create a new hdf5 file
+  HighFive::File file(fname, HighFive::File::ReadWrite | HighFive::File::Create |
+                                 HighFive::File::Truncate);
+  
+  // ************* all the vectors ****************//
+  // write xss
+  HighFive::DataSet xss = file.createDataSet<double>("xss", HighFive::DataSpace::From(xss_));
+  xss.write(xss_);
+
+  // write nxs
+  HighFive::DataSet nxs = file.createDataSet<int32_t>("nxs", HighFive::DataSpace::From(nxs_));
+  nxs.write(nxs_);
+
+  // write jxs
+  HighFive::DataSet jxs = file.createDataSet<int32_t>("jxs", HighFive::DataSpace::From(jxs_));
+  jxs.write(jxs_);
+
+  // Convert izaw_ to a vector of PairIntDouble
+  std::vector<PairIntDouble> izaw_converted;
+  for (const auto& pair : izaw_) {
+      izaw_converted.push_back({pair.first, pair.second});
+  }
+  // Write izaw_converted to the HDF5 file
+  auto t1 = create_compound_PairIntDouble();
+  t1.commit(file, "PairIntDouble");
+  auto dataset = file.createDataSet("izaw", izaw_converted);
+
+  // write zaid (its just two integers: uint32_t Z and uint32_t A)
+  std::vector<uint32_t> zaid = {zaid_.Z(), zaid_.A()};
+  HighFive::DataSet zaid_ds = file.createDataSet<uint32_t>("zaid", HighFive::DataSpace::From(zaid));
+  zaid_ds.write(zaid);
+
+  // *************** all the scalars ****************
+  // write awr
+  HighFive::DataSet awr = file.createDataSet<double>("awr", HighFive::DataSpace(HighFive::DataSpace::dataspace_scalar));
+  awr.write(awr_);
+
+  // write temperature
+  HighFive::DataSet temperature = file.createDataSet<double>("temperature", HighFive::DataSpace(HighFive::DataSpace::dataspace_scalar));
+  temperature.write(temperature_);
+
+  // write if fissile
+  HighFive::DataSet fissile = file.createDataSet<bool>("fissile", HighFive::DataSpace(HighFive::DataSpace::dataspace_scalar));
+  fissile.write(fissile_);
+
+  // ************************ strings *******************
+
+  // mat
+  auto scalar_dataspace = HighFive::DataSpace(HighFive::DataSpace::dataspace_scalar);
+  auto variable_stringtype = HighFive::VariableLengthStringType();
+  file.createDataSet("mat", scalar_dataspace, variable_stringtype).write(mat_);
+
+  // date
+  file.createDataSet("date", scalar_dataspace, variable_stringtype).write(date_);
+
+  // comment
+  file.createDataSet("comment", scalar_dataspace, variable_stringtype).write(comment_);
+
+  // fname
+  file.createDataSet("fname", scalar_dataspace, variable_stringtype).write(fname_);
+
+  // write zaid_text
+  file.createDataSet("zaid_txt", scalar_dataspace, variable_stringtype).write(zaid_txt);
+
 }
 
 std::vector<std::pair<int32_t, double>> ACE::izaw(std::size_t i,

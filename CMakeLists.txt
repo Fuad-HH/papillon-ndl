@@ -16,6 +16,22 @@ option(PNDL_INSTALL "Install the PapillonNDL library and header files" ON)
 option(PNDL_TESTS "Build PapillonNDL tests" OFF)
 option(PNDL_TOOLS "Build sampling tools for PapillonNDL and OpenMC" OFF)
 
+#===============================================================================
+# Get HighFive
+message(STATUS "Downloading HighFive")
+set(HIGHFIVE_USE_BOOST OFF)
+set(HIGHFIVE_EXAMPLES OFF)
+set(HIGHFIVE_BUILD_DOCS OFF)
+set(HIGHFIVE_STATIC_HDF5 ON)
+set(HighFive_FIND_QUIETLY OFF)
+FetchContent_Declare(HighFive
+  GIT_REPOSITORY https://github.com/BlueBrain/HighFive.git
+  GIT_TAG        master
+)
+FetchContent_MakeAvailable(HighFive)
+
+#===============================================================================
+
 # List of source files for PapillonNDL
 set(PNDL_SOURCE_LIST src/element.cpp
                      src/tabulated_1d.cpp
@@ -95,6 +111,9 @@ target_include_directories(PapillonNDL PUBLIC
 
 # Require C++20 standard
 target_compile_features(PapillonNDL PUBLIC cxx_std_20)
+
+# add highfive to papillonndl
+target_link_libraries(PapillonNDL PUBLIC HighFive::HighFive)
 
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC") # Comile options for Windows
