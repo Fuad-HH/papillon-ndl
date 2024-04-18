@@ -1,9 +1,9 @@
-cmake_minimum_required(VERSION 3.11)
+cmake_minimum_required(VERSION 3.20)
 
 project(PapillonNDL
   VERSION "0.3.1"
   DESCRIPTION "Library to interact with ACE nuclear data files."
-  LANGUAGES CXX
+  LANGUAGES C CXX
 )
 
 include(CMakePackageConfigHelpers)
@@ -11,26 +11,22 @@ include(FetchContent)
 
 # Add options
 option(PNDL_SHARED "Build PapillonNDL as a shared library" ON)
-option(PNDL_PYTHON "Enable Python interface to PapillonNDL" ON)
+option(PNDL_PYTHON "Enable Python interface to PapillonNDL" OFF)
 option(PNDL_INSTALL "Install the PapillonNDL library and header files" ON)
 option(PNDL_TESTS "Build PapillonNDL tests" OFF)
 option(PNDL_TOOLS "Build sampling tools for PapillonNDL and OpenMC" OFF)
 
 #===============================================================================
 # Get HighFive
-message(STATUS "Downloading HighFive")
-set(HIGHFIVE_USE_BOOST OFF)
-set(HIGHFIVE_EXAMPLES OFF)
-set(HIGHFIVE_BUILD_DOCS OFF)
-set(HIGHFIVE_STATIC_HDF5 ON)
-set(HighFive_FIND_QUIETLY OFF)
-FetchContent_Declare(HighFive
-  GIT_REPOSITORY https://github.com/BlueBrain/HighFive.git
-  GIT_TAG        master
-)
-FetchContent_MakeAvailable(HighFive)
+if(PNDL_USE_HighFive)
+  find_package(HighFive REQUIRED)
+endif()
 
 #===============================================================================
+
+if(PNDL_USE_ADIOS2)
+  find_package(ADIOS2 REQUIRED)
+endif()
 
 # List of source files for PapillonNDL
 set(PNDL_SOURCE_LIST src/element.cpp
@@ -112,8 +108,17 @@ target_include_directories(PapillonNDL PUBLIC
 # Require C++20 standard
 target_compile_features(PapillonNDL PUBLIC cxx_std_20)
 
-# add highfive to papillonndl
-target_link_libraries(PapillonNDL PUBLIC HighFive::HighFive)
+if(PNDL_USE_HighFive)
+  # add highfive to papillonndl
+  target_link_libraries(PapillonNDL PUBLIC HighFive::HighFive)
+endif()
+
+
+if(PNDL_USE_ADIOS2)
+  # add adios2 to papillonndl
+  target_link_libraries(PapillonNDL PUBLIC adios2::cxx11_mpi MPI::MPI_C)
+  # TODO: check how to use without MPI and without making it PUBLIC
+endif()
 
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC") # Comile options for Windows
@@ -182,6 +187,14 @@ if(PNDL_PYTHON)
   
   # Must link Python bindings with full library
   target_link_libraries(pyPapillonNDL PRIVATE PapillonNDL)
+  
+  if(PNDL_USE_HighFive)
+    target_link_libraries(pyPapillonNDL PRIVATE HighFive::HighFive)
+  endif()
+  
+  if(PNDL_USE_ADIOS2)
+    target_link_libraries(pyPapillonNDL PRIVATE adios2::cxx11_mpi MPI::MPI_C)
+  endif()
 
   if(PNDL_INSTALL)
     # Get location for python lib

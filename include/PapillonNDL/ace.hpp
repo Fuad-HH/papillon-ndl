@@ -34,6 +34,7 @@
 #include <string>
 #include <vector>
 #include <highfive/highfive.hpp>
+#include <adios2.h>
 
 namespace pndl {
 
@@ -49,7 +50,8 @@ class ACE {
   enum class Type {
     ASCII, /**< ACE stored as ASCII text. */
     BINARY, /**< ACE stored in NJOY binary format. */
-    HDF5 /**< ACE stored in HDF5 format. */
+    HDF5, /**< ACE stored in HDF5 format. */
+    ADIOS2 /**< ACE stored in ADIOS2 format */
   };
 
   /**
@@ -227,6 +229,12 @@ class ACE {
   void save_hdf5(std::string& fname);
 
   /**
+  * @brief Saves a copy of the ACE file in adios2 format
+  * @param fname Name of file where adios2 data will be saved.
+  */
+  void save_adios2(adios2::IO io, adios2::Engine bpWriter, std::string atom, std::string id, adios2::Group g);
+
+  /**
    * @brief Returns a pointer to the beginning of the XSS array.
    */
   const double* xss_data() const;
@@ -336,6 +344,7 @@ class ACE {
   void read_ascii(std::ifstream& file);
   void read_binary(std::ifstream& file);
   void read_hdf5(std::string& fname);
+  void read_adios2(std::string& fname);
 };  // ACE
 }  // namespace pndl
 

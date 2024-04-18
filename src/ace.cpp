@@ -87,6 +87,9 @@ ACE::ACE(std::string fname, Type type)
     case Type::HDF5:
       read_hdf5(fname); // because the highfive needs the file name
       break;
+    case Type::ADIOS2:
+      read_adios2(fname); // adios2 also nees the file name
+      break;
   }
 
   file.close();
@@ -322,6 +325,49 @@ void ACE::read_hdf5(std::string& fname) {
   flname.read(fname_);
 }
 
+void ACE::read_adios2(std::string& fname) {
+  adios2::ADIOS adios;
+  adios2::IO io = adios.DeclareIO("ACE-serial-read");
+  adios2::Engine bpReader = io.Open(fname, adios2::Mode::Read);
+
+  bpReader.BeginStep();
+  // Read the variables
+  adios2::Variable<double> bpxss = io.InquireVariable<double>("xss");
+  adios2::Variable<int32_t> bpnxs = io.InquireVariable<int32_t>("nxs");
+  adios2::Variable<int32_t> bpjxs = io.InquireVariable<int32_t>("jxs");
+  //adios2::Variable<std::pair<int32_t, double>> bpizaw = io.InquireVariable<std::pair<int32_t, double>>("izaw");
+  //adios2::Variable<uint32_t> bpzaid = io.InquireVariable<uint32_t>("zaid");
+
+  // Read the attributes
+  awr_ = io.InquireAttribute<double>("awr").Data()[0];
+  temperature_ = io.InquireAttribute<double>("temperature").Data()[0];
+  int fissile_flag = io.InquireAttribute<int>("fissile").Data()[0];
+  fissile_ = (bool)fissile_flag; // adios2 does not support bool
+  mat_ = io.InquireAttribute<std::string>("mat").Data()[0];
+  date_ = io.InquireAttribute<std::string>("date").Data()[0];
+  comment_ = io.InquireAttribute<std::string>("comment").Data()[0];
+  fname_ = io.InquireAttribute<std::string>("fname").Data()[0];
+  zaid_txt = io.InquireAttribute<std::string>("zaid_txt").Data()[0];
+
+  // Read the data
+  std::vector<double> xss_data;
+  bpReader.Get(bpxss, xss_data);
+  xss_ = xss_data; //TODO consider std::move
+
+  std::vector<int32_t> nxs_data;
+  bpReader.Get(bpnxs, nxs_data);
+  std::copy(nxs_data.begin(), nxs_data.end(), nxs_.begin());
+
+  std::vector<int32_t> jxs_data;
+  bpReader.Get(bpjxs, jxs_data);
+  std::copy(jxs_data.begin(), jxs_data.end(), jxs_.begin());
+
+  // close the file
+  bpReader.EndStep();
+  bpReader.Close();
+
+}
+
 
 void ACE::save_binary(std::string& fname) {
   std::ofstream file(fname, std::ios_base::binary);
@@ -457,6 +503,66 @@ void ACE::save_hdf5(std::string& fname) {
   // write zaid_text
   file.createDataSet("zaid_txt", scalar_dataspace, variable_stringtype).write(zaid_txt);
 
+}
+
+// save_adios2
+void ACE::save_adios2(adios2::IO io, adios2::Engine bpWriter, std::string atom, std::string id, adios2::Group g)
+{
+  /* set up adios*/
+  //adios2::ADIOS adios;
+  //adios2::IO io = adios.DeclareIO("ACE-serial");
+  //adios2::Engine bpWriter = io.Open(fname, adios2::Mode::Write);
+
+  // atom is the group name
+  // id is the sub group name and the following data goes into this sub group
+  // ***************** check if the group exists ****************
+  adios2::Group gatom= g.InquireGroup(atom);
+  g.setPath(atom);
+  adios2::Group gid = gatom.InquireGroup(id);
+  gid.setPath(atom + "/" + id);
+
+  // sizes of the arrays
+  const std::size_t xss_size = xss_.size();
+  const std::size_t nxs_size = nxs_.size();
+  const std::size_t jxs_size = jxs_.size();
+  //const std::size_t izaw_size = izaw_.size();
+
+  // Define the variables
+  adios2::Variable<double> bpxss = io.DefineVariable<double>("xss", {xss_size}, {0}, {xss_size}, adios2::ConstantDims);
+  adios2::Variable<int32_t> bpnxs = io.DefineVariable<int32_t>("nxs", {nxs_size}, {0}, {nxs_size}, adios2::ConstantDims);
+  adios2::Variable<int32_t> bpjxs = io.DefineVariable<int32_t>("jxs", {jxs_size}, {0}, {jxs_size}, adios2::ConstantDims);
+  //adios2::Variable<std::pair<int32_t, double>> bpizaw = io.DefineVariable<std::pair<int32_t, double>>("izaw", {izaw_size}, {0}, {izaw_size}, adios2::ConstantDims);
+
+  adios2::Variable<uint32_t> bpzaid = io.DefineVariable<uint32_t>("zaid", {2}, {0}, {2}, adios2::ConstantDims);
+
+  // string variables as attributes
+  io.DefineAttribute<std::string>("mat", mat_);
+  io.DefineAttribute<std::string>("date", date_);
+  io.DefineAttribute<std::string>("comment", comment_);
+  io.DefineAttribute<std::string>("fname", fname_);
+  io.DefineAttribute<std::string>("zaid_txt", zaid_txt);
+
+  // scalar variables as attributes
+  io.DefineAttribute<double>("awr", awr_);
+  io.DefineAttribute<double>("temperature", temperature_);
+  int fissile_flag = (int)fissile_; //looks like adios2 does not support bool
+  io.DefineAttribute<int>("fissile", fissile_flag);
+
+  // Write the data
+  //bpWriter.BeginStep();
+
+  bpWriter.Put(bpxss, xss_.data());
+  bpWriter.Put(bpnxs, nxs_.data());
+  bpWriter.Put(bpjxs, jxs_.data());
+  //bpWriter.Put(bpizaw, izaw_.data());
+  // zaid array creation
+  std::vector<uint32_t> zaid_arr = {zaid_.Z(), zaid_.A()};
+  bpWriter.Put(bpzaid, zaid_arr.data());
+
+  bpWriter.PerformPuts();
+
+  //bpWriter.EndStep();
+  //bpWriter.Close();
 }
 
 std::vector<std::pair<int32_t, double>> ACE::izaw(std::size_t i,
