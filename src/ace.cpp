@@ -84,15 +84,44 @@ ACE::ACE(std::string fname, Type type)
     case Type::BINARY:
       read_binary(file);
       break;
+    /*
     case Type::HDF5:
       read_hdf5(fname); // because the highfive needs the file name
       break;
+    */
+    /*
     case Type::ADIOS2:
       read_adios2(fname); // adios2 also nees the file name
       break;
+    */
   }
 
   file.close();
+}
+
+/**
+ * @brief Constructor overlaod for creating an ACE object from adios2
+ * @param io adios2 IO object
+ * @param bpReader adios2 Engine object
+ * @param atom group name
+ * @param id sub group name
+*/
+ACE::ACE(adios2::IO io, adios2::Engine bpReader, std::string atom, std::string id)
+    : zaid_(0, 0),
+      temperature_(),
+      awr_(),
+      fissile_(),
+      fname_(),
+      zaid_txt(10, ' '),
+      date_(10, ' '),
+      comment_(70, ' '),
+      mat_(10, ' '),
+      izaw_(),
+      nxs_(),
+      jxs_(),
+      xss_() {
+  // read the data from adios2
+  read_adios2(io, bpReader, atom, id);
 }
 
 void ACE::read_ascii(std::ifstream& file) {
@@ -325,29 +354,32 @@ void ACE::read_hdf5(std::string& fname) {
   flname.read(fname_);
 }
 
-void ACE::read_adios2(std::string& fname) {
+void ACE::read_adios2(adios2::IO io, adios2::Engine bpReader, std::string atom, std::string id) {
+  /*
   adios2::ADIOS adios;
   adios2::IO io = adios.DeclareIO("ACE-serial-read");
   adios2::Engine bpReader = io.Open(fname, adios2::Mode::Read);
 
   bpReader.BeginStep();
+  */
+  std::string gname = atom + "/" + id + "/";
   // Read the variables
-  adios2::Variable<double> bpxss = io.InquireVariable<double>("xss");
-  adios2::Variable<int32_t> bpnxs = io.InquireVariable<int32_t>("nxs");
-  adios2::Variable<int32_t> bpjxs = io.InquireVariable<int32_t>("jxs");
+  adios2::Variable<double> bpxss = io.InquireVariable<double>(gname+"xss");
+  adios2::Variable<int32_t> bpnxs = io.InquireVariable<int32_t>(gname+"nxs");
+  adios2::Variable<int32_t> bpjxs = io.InquireVariable<int32_t>(gname+"jxs");
   //adios2::Variable<std::pair<int32_t, double>> bpizaw = io.InquireVariable<std::pair<int32_t, double>>("izaw");
   //adios2::Variable<uint32_t> bpzaid = io.InquireVariable<uint32_t>("zaid");
 
   // Read the attributes
-  awr_ = io.InquireAttribute<double>("awr").Data()[0];
-  temperature_ = io.InquireAttribute<double>("temperature").Data()[0];
-  int fissile_flag = io.InquireAttribute<int>("fissile").Data()[0];
+  awr_ = io.InquireAttribute<double>(gname+"awr").Data()[0];
+  temperature_ = io.InquireAttribute<double>(gname+"temperature").Data()[0];
+  int fissile_flag = io.InquireAttribute<int>(gname+"fissile").Data()[0];
   fissile_ = (bool)fissile_flag; // adios2 does not support bool
-  mat_ = io.InquireAttribute<std::string>("mat").Data()[0];
-  date_ = io.InquireAttribute<std::string>("date").Data()[0];
-  comment_ = io.InquireAttribute<std::string>("comment").Data()[0];
-  fname_ = io.InquireAttribute<std::string>("fname").Data()[0];
-  zaid_txt = io.InquireAttribute<std::string>("zaid_txt").Data()[0];
+  mat_ = io.InquireAttribute<std::string>(gname+"mat").Data()[0];
+  date_ = io.InquireAttribute<std::string>(gname+"date").Data()[0];
+  comment_ = io.InquireAttribute<std::string>(gname+"comment").Data()[0];
+  fname_ = io.InquireAttribute<std::string>(gname+"fname").Data()[0];
+  zaid_txt = io.InquireAttribute<std::string>(gname+"zaid_txt").Data()[0];
 
   // Read the data
   std::vector<double> xss_data;
@@ -362,9 +394,12 @@ void ACE::read_adios2(std::string& fname) {
   bpReader.Get(bpjxs, jxs_data);
   std::copy(jxs_data.begin(), jxs_data.end(), jxs_.begin());
 
+  bpReader.PerformGets();
+  /*
   // close the file
   bpReader.EndStep();
   bpReader.Close();
+  */
 
 }
 

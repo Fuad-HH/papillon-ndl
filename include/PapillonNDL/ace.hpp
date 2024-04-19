@@ -50,8 +50,8 @@ class ACE {
   enum class Type {
     ASCII, /**< ACE stored as ASCII text. */
     BINARY, /**< ACE stored in NJOY binary format. */
-    HDF5, /**< ACE stored in HDF5 format. */
-    ADIOS2 /**< ACE stored in ADIOS2 format */
+    //HDF5, /**< ACE stored in HDF5 format. */
+    //ADIOS2 /**< ACE stored in ADIOS2 format */
   };
 
   /**
@@ -59,6 +59,7 @@ class ACE {
    * @param type Format of ACE file. Default is ASCII.
    */
   ACE(std::string fname, Type type = Type::ASCII);
+  ACE(adios2::IO io, adios2::Engine bpReader, std::string atom, std::string id);
   ~ACE() = default;
 
   /**
@@ -344,7 +345,7 @@ class ACE {
   void read_ascii(std::ifstream& file);
   void read_binary(std::ifstream& file);
   void read_hdf5(std::string& fname);
-  void read_adios2(std::string& fname);
+  void read_adios2(adios2::IO io, adios2::Engine bpReader, std::string atom, std::string id);
 };  // ACE
 }  // namespace pndl
 
