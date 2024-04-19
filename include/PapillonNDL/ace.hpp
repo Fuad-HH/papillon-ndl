@@ -226,13 +226,13 @@ class ACE {
    * @brief Saves a copy of the ACE file in the HDF5 (using HighFive) format.
    * @param fname Name of file where HDF5 data will be saved.
    */
-  void save_hdf5(std::string& fname);
+  void save_hdf5(HighFive::File& file, std::string gname);
 
   /**
   * @brief Saves a copy of the ACE file in adios2 format
   * @param fname Name of file where adios2 data will be saved.
   */
-  void save_adios2(adios2::IO io, adios2::Engine bpWriter, std::string atom, std::string id, adios2::Group g);
+  void save_adios2(adios2::IO io, adios2::Engine bpWriter, std::string atom, std::string id);
 
   /**
    * @brief Returns a pointer to the beginning of the XSS array.

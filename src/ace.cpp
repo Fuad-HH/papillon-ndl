@@ -438,24 +438,24 @@ void ACE::save_binary(std::string& fname) {
   file.close();
 }
 
-void ACE::save_hdf5(std::string& fname) {
+void ACE::save_hdf5(HighFive::File& file, std::string gname) {
   // create a new hdf5 file
-  HighFive::File file(fname, HighFive::File::ReadWrite | HighFive::File::Create |
-                                 HighFive::File::Truncate);
+  //HighFive::File file(fname, HighFive::File::ReadWrite | HighFive::File::Create |
+  //                               HighFive::File::Truncate);
   
   // ************* all the vectors ****************//
   // write xss
-  HighFive::DataSet xss = file.createDataSet<double>("xss", HighFive::DataSpace::From(xss_));
+  HighFive::DataSet xss = file.createDataSet<double>(gname+"/xss", HighFive::DataSpace::From(xss_));
   xss.write(xss_);
 
   // write nxs
-  HighFive::DataSet nxs = file.createDataSet<int32_t>("nxs", HighFive::DataSpace::From(nxs_));
+  HighFive::DataSet nxs = file.createDataSet<int32_t>(gname+"/nxs", HighFive::DataSpace::From(nxs_));
   nxs.write(nxs_);
 
   // write jxs
-  HighFive::DataSet jxs = file.createDataSet<int32_t>("jxs", HighFive::DataSpace::From(jxs_));
+  HighFive::DataSet jxs = file.createDataSet<int32_t>(gname+"/jxs", HighFive::DataSpace::From(jxs_));
   jxs.write(jxs_);
-
+/*
   // Convert izaw_ to a vector of PairIntDouble
   std::vector<PairIntDouble> izaw_converted;
   for (const auto& pair : izaw_) {
@@ -464,24 +464,25 @@ void ACE::save_hdf5(std::string& fname) {
   // Write izaw_converted to the HDF5 file
   auto t1 = create_compound_PairIntDouble();
   t1.commit(file, "PairIntDouble");
-  auto dataset = file.createDataSet("izaw", izaw_converted);
+  auto dataset = file.createDataSet(gname+"/izaw", izaw_converted);
+*/
 
   // write zaid (its just two integers: uint32_t Z and uint32_t A)
   std::vector<uint32_t> zaid = {zaid_.Z(), zaid_.A()};
-  HighFive::DataSet zaid_ds = file.createDataSet<uint32_t>("zaid", HighFive::DataSpace::From(zaid));
+  HighFive::DataSet zaid_ds = file.createDataSet<uint32_t>(gname+"/zaid", HighFive::DataSpace::From(zaid));
   zaid_ds.write(zaid);
 
   // *************** all the scalars ****************
   // write awr
-  HighFive::DataSet awr = file.createDataSet<double>("awr", HighFive::DataSpace(HighFive::DataSpace::dataspace_scalar));
+  HighFive::DataSet awr = file.createDataSet<double>(gname+"/awr", HighFive::DataSpace(HighFive::DataSpace::dataspace_scalar));
   awr.write(awr_);
 
   // write temperature
-  HighFive::DataSet temperature = file.createDataSet<double>("temperature", HighFive::DataSpace(HighFive::DataSpace::dataspace_scalar));
+  HighFive::DataSet temperature = file.createDataSet<double>(gname+"/temperature", HighFive::DataSpace(HighFive::DataSpace::dataspace_scalar));
   temperature.write(temperature_);
 
   // write if fissile
-  HighFive::DataSet fissile = file.createDataSet<bool>("fissile", HighFive::DataSpace(HighFive::DataSpace::dataspace_scalar));
+  HighFive::DataSet fissile = file.createDataSet<bool>(gname+"/fissile", HighFive::DataSpace(HighFive::DataSpace::dataspace_scalar));
   fissile.write(fissile_);
 
   // ************************ strings *******************
@@ -489,24 +490,24 @@ void ACE::save_hdf5(std::string& fname) {
   // mat
   auto scalar_dataspace = HighFive::DataSpace(HighFive::DataSpace::dataspace_scalar);
   auto variable_stringtype = HighFive::VariableLengthStringType();
-  file.createDataSet("mat", scalar_dataspace, variable_stringtype).write(mat_);
+  file.createDataSet(gname+"/mat", scalar_dataspace, variable_stringtype).write(mat_);
 
   // date
-  file.createDataSet("date", scalar_dataspace, variable_stringtype).write(date_);
+  file.createDataSet(gname+"/date", scalar_dataspace, variable_stringtype).write(date_);
 
   // comment
-  file.createDataSet("comment", scalar_dataspace, variable_stringtype).write(comment_);
+  file.createDataSet(gname+"/comment", scalar_dataspace, variable_stringtype).write(comment_);
 
   // fname
-  file.createDataSet("fname", scalar_dataspace, variable_stringtype).write(fname_);
+  file.createDataSet(gname+"/fname", scalar_dataspace, variable_stringtype).write(fname_);
 
   // write zaid_text
-  file.createDataSet("zaid_txt", scalar_dataspace, variable_stringtype).write(zaid_txt);
+  file.createDataSet(gname+"/zaid_txt", scalar_dataspace, variable_stringtype).write(zaid_txt);
 
 }
 
 // save_adios2
-void ACE::save_adios2(adios2::IO io, adios2::Engine bpWriter, std::string atom, std::string id, adios2::Group g)
+void ACE::save_adios2(adios2::IO io, adios2::Engine bpWriter, std::string atom, std::string id)
 {
   /* set up adios*/
   //adios2::ADIOS adios;
@@ -516,10 +517,7 @@ void ACE::save_adios2(adios2::IO io, adios2::Engine bpWriter, std::string atom, 
   // atom is the group name
   // id is the sub group name and the following data goes into this sub group
   // ***************** check if the group exists ****************
-  adios2::Group gatom= g.InquireGroup(atom);
-  g.setPath(atom);
-  adios2::Group gid = gatom.InquireGroup(id);
-  gid.setPath(atom + "/" + id);
+  std::string gname = atom + "/" + id + "/";
 
   // sizes of the arrays
   const std::size_t xss_size = xss_.size();
@@ -528,25 +526,25 @@ void ACE::save_adios2(adios2::IO io, adios2::Engine bpWriter, std::string atom, 
   //const std::size_t izaw_size = izaw_.size();
 
   // Define the variables
-  adios2::Variable<double> bpxss = io.DefineVariable<double>("xss", {xss_size}, {0}, {xss_size}, adios2::ConstantDims);
-  adios2::Variable<int32_t> bpnxs = io.DefineVariable<int32_t>("nxs", {nxs_size}, {0}, {nxs_size}, adios2::ConstantDims);
-  adios2::Variable<int32_t> bpjxs = io.DefineVariable<int32_t>("jxs", {jxs_size}, {0}, {jxs_size}, adios2::ConstantDims);
+  adios2::Variable<double> bpxss = io.DefineVariable<double>(gname+"xss", {xss_size}, {0}, {xss_size}, adios2::ConstantDims);
+  adios2::Variable<int32_t> bpnxs = io.DefineVariable<int32_t>(gname+"nxs", {nxs_size}, {0}, {nxs_size}, adios2::ConstantDims);
+  adios2::Variable<int32_t> bpjxs = io.DefineVariable<int32_t>(gname+"jxs", {jxs_size}, {0}, {jxs_size}, adios2::ConstantDims);
   //adios2::Variable<std::pair<int32_t, double>> bpizaw = io.DefineVariable<std::pair<int32_t, double>>("izaw", {izaw_size}, {0}, {izaw_size}, adios2::ConstantDims);
 
-  adios2::Variable<uint32_t> bpzaid = io.DefineVariable<uint32_t>("zaid", {2}, {0}, {2}, adios2::ConstantDims);
+  adios2::Variable<uint32_t> bpzaid = io.DefineVariable<uint32_t>(gname+"zaid", {2}, {0}, {2}, adios2::ConstantDims);
 
   // string variables as attributes
-  io.DefineAttribute<std::string>("mat", mat_);
-  io.DefineAttribute<std::string>("date", date_);
-  io.DefineAttribute<std::string>("comment", comment_);
-  io.DefineAttribute<std::string>("fname", fname_);
-  io.DefineAttribute<std::string>("zaid_txt", zaid_txt);
+  io.DefineAttribute<std::string>(gname+"mat", mat_);
+  io.DefineAttribute<std::string>(gname+"date", date_);
+  io.DefineAttribute<std::string>(gname+"comment", comment_);
+  io.DefineAttribute<std::string>(gname+"fname", fname_);
+  io.DefineAttribute<std::string>(gname+"zaid_txt", zaid_txt);
 
   // scalar variables as attributes
-  io.DefineAttribute<double>("awr", awr_);
-  io.DefineAttribute<double>("temperature", temperature_);
+  io.DefineAttribute<double>(gname+"awr", awr_);
+  io.DefineAttribute<double>(gname+"temperature", temperature_);
   int fissile_flag = (int)fissile_; //looks like adios2 does not support bool
-  io.DefineAttribute<int>("fissile", fissile_flag);
+  io.DefineAttribute<int>(gname+"fissile", fissile_flag);
 
   // Write the data
   //bpWriter.BeginStep();
