@@ -124,6 +124,30 @@ ACE::ACE(adios2::IO io, adios2::Engine bpReader, std::string atom, std::string i
   read_adios2(io, bpReader, atom, id);
 }
 
+/**
+ * @brief Constructor overload for creating an ACE object from HDF5 file
+ * @param hdf5_file HighFive File object
+ * @param gname group name
+ * 
+*/
+ACE::ACE(HighFive::File& hdf5_file, std::string gname)
+    : zaid_(0, 0),
+      temperature_(),
+      awr_(),
+      fissile_(),
+      fname_(),
+      zaid_txt(10, ' '),
+      date_(10, ' '),
+      comment_(70, ' '),
+      mat_(10, ' '),
+      izaw_(),
+      nxs_(),
+      jxs_(),
+      xss_() {
+  // read the data from HDF5
+  read_hdf5(hdf5_file, gname);
+}
+
 void ACE::read_ascii(std::ifstream& file) {
   // Check first line to determine header type
   bool legacy_header = true;
@@ -308,49 +332,51 @@ void ACE::read_binary(std::ifstream& file) {
 }
 
 
-void ACE::read_hdf5(std::string& fname) {
-  HighFive::File hdf5_file(fname, HighFive::File::ReadOnly);
+void ACE::read_hdf5(HighFive::File& hdf5_file, std::string gname) {
+  //HighFive::File hdf5_file(fname, HighFive::File::ReadOnly);
   // Read all the datasets
-  HighFive::DataSet xss = hdf5_file.getDataSet("xss");
+  HighFive::DataSet xss = hdf5_file.getDataSet(gname+"/xss");
   xss.read(xss_);
 
-  HighFive::DataSet nxs = hdf5_file.getDataSet("nxs");
+  HighFive::DataSet nxs = hdf5_file.getDataSet(gname+"/nxs");
   nxs.read(nxs_);
 
-  HighFive::DataSet jxs = hdf5_file.getDataSet("jxs");
+  HighFive::DataSet jxs = hdf5_file.getDataSet(gname+"/jxs");
   jxs.read(jxs_);
-
+/*
+* @TODO not urgent now
   HighFive::DataSet izaw = hdf5_file.getDataSet("izaw");
   std::vector<PairIntDouble> izaw_converted;
   izaw.read(izaw_converted);
   for (size_t i = 0; i < izaw_converted.size(); ++i) {
     izaw_[i] = {izaw_converted[i].first, izaw_converted[i].second};
   }
+*/
 
-  HighFive::DataSet zaid_ds = hdf5_file.getDataSet("zaid");
+  HighFive::DataSet zaid_ds = hdf5_file.getDataSet(gname+"/zaid");
   std::vector<uint32_t> zaid;
   zaid_ds.read(zaid);
   zaid_ = ZAID((uint8_t)zaid[0], (uint8_t)zaid[1]); // casting back to uint8_t
 
-  HighFive::DataSet awr = hdf5_file.getDataSet("awr");
+  HighFive::DataSet awr = hdf5_file.getDataSet(gname+"/awr");
   awr.read(awr_);
 
-  HighFive::DataSet temperature = hdf5_file.getDataSet("temperature");
+  HighFive::DataSet temperature = hdf5_file.getDataSet(gname+"/temperature");
   temperature.read(temperature_);
 
-  HighFive::DataSet fissile = hdf5_file.getDataSet("fissile");
+  HighFive::DataSet fissile = hdf5_file.getDataSet(gname+"/fissile");
   fissile.read(fissile_);
 
-  HighFive::DataSet mat = hdf5_file.getDataSet("mat");
+  HighFive::DataSet mat = hdf5_file.getDataSet(gname+"/mat");
   mat.read(mat_);
 
-  HighFive::DataSet date = hdf5_file.getDataSet("date");
+  HighFive::DataSet date = hdf5_file.getDataSet(gname+"/date");
   date.read(date_);
 
-  HighFive::DataSet comment = hdf5_file.getDataSet("comment");
+  HighFive::DataSet comment = hdf5_file.getDataSet(gname+"/comment");
   comment.read(comment_);
 
-  HighFive::DataSet flname = hdf5_file.getDataSet("fname");
+  HighFive::DataSet flname = hdf5_file.getDataSet(gname+"/fname");
   flname.read(fname_);
 }
 

@@ -60,6 +60,7 @@ class ACE {
    */
   ACE(std::string fname, Type type = Type::ASCII);
   ACE(adios2::IO io, adios2::Engine bpReader, std::string atom, std::string id);
+  ACE(HighFive::File& hdf5_file, std::string gname);
   ~ACE() = default;
 
   /**
@@ -344,7 +345,7 @@ class ACE {
   // Private Helper Methods
   void read_ascii(std::ifstream& file);
   void read_binary(std::ifstream& file);
-  void read_hdf5(std::string& fname);
+  void read_hdf5(HighFive::File& hdf5_file, std::string gname);
   void read_adios2(adios2::IO io, adios2::Engine bpReader, std::string atom, std::string id);
 };  // ACE
 }  // namespace pndl
