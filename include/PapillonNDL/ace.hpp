@@ -58,6 +58,7 @@ class ACE {
    * @param fname Name of the file to be loaded.
    * @param type Format of ACE file. Default is ASCII.
    */
+  ACE();
   ACE(std::string fname, Type type = Type::ASCII);
   ACE(adios2::IO io, adios2::Engine bpReader, std::string atom, std::string id);
   ACE(HighFive::File& hdf5_file, std::string gname);
@@ -325,6 +326,21 @@ class ACE {
    * @brief Returns the index to the beginning of the GPD block.
    */
   int32_t GPD() const { return jxs_[11] - 1; }
+
+  /**
+   * @brief Serializes the ACE data to a binary stream.
+  */
+  void serialize(std::vector<char>& serialized_data);
+
+  /**
+   * @brief Deserializes the ACE data from a binary stream.
+  */
+  void deserialize(std::vector<char>& data);
+
+  /**
+   * @brief Returns the size of the xss_ vector.
+  */
+  std::size_t xss_size() const { return xss_.size(); }
 
  private:
   ZAID zaid_;

@@ -26,6 +26,8 @@
 #include <fstream>
 #include <ios>
 #include <string>
+#include <vector>
+#include <algorithm>
 
 #include <highfive/highfive.hpp>
 #include <highfive/H5File.hpp>
@@ -50,6 +52,22 @@ namespace pndl {
 
 // Forward declaration of split_line function
 static std::vector<std::string> split_line(std::string line);
+
+// default constructor
+ACE::ACE() : zaid_(0, 0),
+             temperature_(),
+             awr_(),
+             fissile_(),
+             fname_(),
+             zaid_txt(10, ' '),
+             date_(10, ' '),
+             comment_(70, ' '),
+             mat_(10, ' '),
+             izaw_(),
+             nxs_(),
+             jxs_(),
+             xss_() {}
+            
 
 ACE::ACE(std::string fname, Type type)
     : zaid_(0, 0),
@@ -650,6 +668,187 @@ std::vector<double> ACE::xss(std::size_t i, std::size_t len) const {
 }
 
 const double* ACE::xss_data() const { return xss_.data(); }
+
+/**
+ * ! This is not used anymore
+*/
+
+//void ACE::serialize(std::stringstream& os) {
+//  // write the header
+//  os.write(zaid_txt.data(), 10);
+//  os.write(reinterpret_cast<char*>(&awr_), sizeof(decltype(awr_)));
+//  os.write(reinterpret_cast<char*>(&temperature_), sizeof(decltype(temperature_)));
+//  os.write(date_.data(), date_.size());
+//  os.write(comment_.data(), comment_.size());
+//  os.write(mat_.data(), mat_.size());
+///*
+//  std::vector<char> buffer;
+//  std::copy(nxs_.begin(), nxs_.end(), std::back_inserter(buffer));
+//  */
+///** @TODO not urgent now
+//  // write IZAW
+//  for (std::size_t i = 0; i < 16; i++) {
+//    os.write(reinterpret_cast<char*>(&izaw_[i].first), sizeof(int32_t));
+//    os.write(reinterpret_cast<char*>(&izaw_[i].second), sizeof(double));
+//  }
+//*/
+//
+//  // write NXS
+//  for (std::size_t i = 0; i < 16; i++) {
+//    os.write(reinterpret_cast<char*>(&nxs_[i]), sizeof(int32_t));
+//  }
+//
+//  // write JXS
+//  for (std::size_t i = 0; i < 32; i++) {
+//    os.write(reinterpret_cast<char*>(&jxs_[i]), sizeof(int32_t));
+//  }
+//
+//  // write the XSS size since it is a variable length vector
+//  long unsigned int xss_size = xss_.size();
+//  os.write(reinterpret_cast<char*>(&xss_size), sizeof(long unsigned int));
+//  // write XSS
+//  for (std::size_t i = 0; i < xss_.size(); i++) {
+//    os.write(reinterpret_cast<char*>(&xss_[i]), sizeof(double));
+//  }
+//
+//}
+//
+//void ACE::deserialize(std::stringstream& is){
+//  // read the header
+//  is.read(zaid_txt.data(), 10);
+//  is.read(reinterpret_cast<char*>(&awr_), sizeof(double));
+//  is.read(reinterpret_cast<char*>(&temperature_), sizeof(double));
+//  is.read(date_.data(), 10);
+//  is.read(comment_.data(), 70);
+//  is.read(mat_.data(), 10);
+//
+//  // read NXS
+//  for (std::size_t i = 0; i < 16; i++) {
+//    is.read(reinterpret_cast<char*>(&nxs_[i]), sizeof(int32_t));
+//  }
+//
+//  // read JXS
+//  for (std::size_t i = 0; i < 32; i++) {
+//    is.read(reinterpret_cast<char*>(&jxs_[i]), sizeof(int32_t));
+//  }
+//  // read the XSS size
+//  long unsigned int xss_size;
+//  is.read(reinterpret_cast<char*>(&xss_size), sizeof(long unsigned int));
+//  xss_.resize(xss_size);
+//  // read XSS
+//  for (std::size_t i = 0; i < xss_.size(); i++) {
+//    is.read(reinterpret_cast<char*>(&xss_[i]), sizeof(double));
+//  }
+//
+//}
+
+
+
+/**
+ * @brief Serialize the ACE object to a vector of char
+ * @return std::vector<char> serialized data reference
+*/
+
+void ACE::serialize(std::vector<char>& serialized_data) {
+  //std::vector<char> serialized_data;
+
+  // get the total size of all data to be transferred
+  std::size_t total_size = zaid_txt.size()  + date_.size() + comment_.size() + mat_.size()
+                          + sizeof(double) + sizeof(double) + sizeof(int);
+  serialized_data.reserve(total_size);
+
+  std::copy(zaid_txt.begin(), zaid_txt.end(), std::back_inserter(serialized_data));
+  std::copy(date_.begin(), date_.end(), std::back_inserter(serialized_data));
+  std::copy(comment_.begin(), comment_.end(), std::back_inserter(serialized_data));
+  std::copy(mat_.begin(), mat_.end(), std::back_inserter(serialized_data));
+
+  // copy temperature and awr
+  std::copy(reinterpret_cast<char*>(&awr_), reinterpret_cast<char*>(&awr_)+sizeof(double), std::back_inserter(serialized_data));
+  std::copy(reinterpret_cast<char*>(&temperature_), reinterpret_cast<char*>(&temperature_)+sizeof(double), std::back_inserter(serialized_data));
+
+  // copy fissile flag
+  int fissile_flag = (int)fissile_;
+  std::copy(reinterpret_cast<char*>(&fissile_flag), reinterpret_cast<char*>(&fissile_flag)+sizeof(int), std::back_inserter(serialized_data));
+
+  // copy nxs
+  for (std::size_t i = 0; i < nxs_.size(); i++) {
+    std::copy(reinterpret_cast<char*>(&nxs_[i]), reinterpret_cast<char*>(&nxs_[i])+sizeof(int32_t), std::back_inserter(serialized_data));
+  }
+
+  // copy jxs
+  for (std::size_t i = 0; i < jxs_.size(); i++) {
+    std::copy(reinterpret_cast<char*>(&jxs_[i]), reinterpret_cast<char*>(&jxs_[i])+sizeof(int32_t), std::back_inserter(serialized_data));
+  }
+
+  // copy xss size
+  std::size_t xss_size = xss_.size();
+  std::copy(reinterpret_cast<char*>(&xss_size), reinterpret_cast<char*>(&xss_size)+sizeof(std::size_t), std::back_inserter(serialized_data));
+
+  // copy xss
+  for (std::size_t i = 0; i < xss_.size(); i++) {
+    std::copy(reinterpret_cast<char*>(&xss_[i]), reinterpret_cast<char*>(&xss_[i])+sizeof(double), std::back_inserter(serialized_data));
+  }
+
+}
+
+/**
+ * @brief Deserialize the ACE object from a vector of char
+ * @param serialized_data std::vector<char> serialized data
+*/
+
+void ACE::deserialize(std::vector<char>& serialized_data) {
+
+  // read position
+  std::size_t pos = 0;
+  
+  zaid_txt.assign(serialized_data.begin(), serialized_data.begin() + zaid_txt.size());
+  pos += zaid_txt.size();
+  date_.assign(serialized_data.begin() + pos, serialized_data.begin() + pos + date_.size());
+  pos += date_.size();
+  comment_.assign(serialized_data.begin() + pos, serialized_data.begin() + pos + comment_.size());
+  pos += comment_.size();
+  mat_.assign(serialized_data.begin() + pos, serialized_data.begin() + pos + mat_.size());
+  pos += mat_.size();
+
+  // read temperature and awr
+  std::copy(serialized_data.begin() + pos, serialized_data.begin() + pos + sizeof(double), reinterpret_cast<char*>(&awr_));
+  pos += sizeof(double);
+  std::copy(serialized_data.begin() + pos, serialized_data.begin() + pos + sizeof(double), reinterpret_cast<char*>(&temperature_));
+  pos += sizeof(double);
+
+  // read fissile flag
+  int fissile_flag;
+  std::copy(serialized_data.begin() + pos, serialized_data.begin() + pos + sizeof(int), reinterpret_cast<char*>(&fissile_flag));
+  fissile_ = (bool)fissile_flag;
+  pos += sizeof(int);
+
+  // read nxs
+  for (std::size_t i = 0; i < nxs_.size(); i++) {
+    std::copy(serialized_data.begin() + pos, serialized_data.begin() + pos + sizeof(int32_t), reinterpret_cast<char*>(&nxs_[i]));
+    pos += sizeof(int32_t);
+  }
+
+  // read jxs
+  for (std::size_t i = 0; i < jxs_.size(); i++) {
+    std::copy(serialized_data.begin() + pos, serialized_data.begin() + pos + sizeof(int32_t), reinterpret_cast<char*>(&jxs_[i]));
+    pos += sizeof(int32_t);
+  }
+
+  // read xss size
+  std::size_t xss_size;
+  std::copy(serialized_data.begin() + pos, serialized_data.begin() + pos + sizeof(std::size_t), reinterpret_cast<char*>(&xss_size));
+  pos += sizeof(std::size_t);
+
+  // read xss
+  xss_.resize(xss_size);
+  for (std::size_t i = 0; i < xss_size; i++) {
+    std::copy(serialized_data.begin() + pos, serialized_data.begin() + pos + sizeof(double), reinterpret_cast<char*>(&xss_[i]));
+    pos += sizeof(double);
+  }
+
+}
+
+
 
 static std::vector<std::string> split_line(std::string line) {
   std::vector<std::string> out;
